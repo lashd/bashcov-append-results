@@ -1,0 +1,36 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+lib = File.expand_path("../../lib", __FILE__)
+$LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
+
+require "bashcov"
+
+command_name = Bashcov.fullname
+parser = OptionParser.new do |opts|
+  opts.on("-a", '--append-results', "append to results to existing report") do
+    require 'uuid'
+    command_name = UUID.generate(:compact)
+  end
+end
+
+begin
+  parser.parse!(ARGV)
+rescue OptionParser::InvalidOption
+end
+
+Bashcov.parse_options! ARGV
+
+runner = Bashcov::Runner.new(Bashcov.command)
+status = runner.run
+
+require "simplecov"
+SimpleCov.root(Bashcov.root_directory)
+
+result = SimpleCov::Result.new(runner.result).tap do |result|
+  result.command_name = command_name
+end
+
+SimpleCov::ResultMerger.store_result(result)
+SimpleCov::ResultMerger.merged_result.format!
+exit status.exitstatus
